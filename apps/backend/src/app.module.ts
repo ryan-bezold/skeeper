@@ -29,6 +29,9 @@ import {DeleteRoomUseCase} from "@application/use-cases/room/delete-room.use-cas
 import {GetAllRoomsUseCase} from "@application/use-cases/room/get-all-rooms.use-case";
 import {GetRoomByIdUseCase} from "@application/use-cases/room/get-room-by-id.use-case";
 import {UpdateRoomUseCase} from "@application/use-cases/room/update-room.use-case";
+import {GetPlayersByRoomIdUseCase} from "@application/use-cases/player/get-players-by-room-id.use-case";
+import {UpdatePlayerNameUseCase} from "@application/use-cases/player/update-player-name.use-case";
+import {DeletePlayerUseCase} from "@application/use-cases/player/delete-player.use-case";
 
 @Module({
   imports: [
@@ -68,6 +71,9 @@ import {UpdateRoomUseCase} from "@application/use-cases/room/update-room.use-cas
     UpdateRoomUseCase,
     CreatePlayerUseCase,
     UpdateScoreUseCase,
+    GetPlayersByRoomIdUseCase,
+    UpdatePlayerNameUseCase,
+    DeletePlayerUseCase,
     GetPlayerScoreHistoryUseCase,
     GetRoomScoreHistoryUseCase,
     {

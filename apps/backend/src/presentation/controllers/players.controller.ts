@@ -1,12 +1,12 @@
 import {
-  Controller,
-  Post,
-  Get,
-  Delete,
-  Patch,
-  Body,
-  Param,
-  ParseUUIDPipe,
+    Controller,
+    Post,
+    Get,
+    Delete,
+    Patch,
+    Body,
+    Param,
+    ParseUUIDPipe, HttpCode,
 } from '@nestjs/common';
 import { CreatePlayerUseCase } from '@application/use-cases/player/create-player.use-case';
 import { UpdateScoreUseCase } from '@application/use-cases/player/update-score.use-case';
@@ -15,12 +15,18 @@ import {
   UpdatePlayerDto,
   UpdateScoreDto,
 } from '@presentation/dtos/player.dto';
+import {GetPlayersByRoomIdUseCase} from "@application/use-cases/player/get-players-by-room-id.use-case";
+import {UpdatePlayerNameUseCase} from "@application/use-cases/player/update-player-name.use-case";
+import {DeletePlayerUseCase} from "@application/use-cases/player/delete-player.use-case";
 
 @Controller('rooms/:roomId/players')
 export class PlayersController {
   constructor(
     private readonly createPlayerUseCase: CreatePlayerUseCase,
     private readonly updateScoreUseCase: UpdateScoreUseCase,
+    private readonly getPlayersByRoomIdUseCase: GetPlayersByRoomIdUseCase,
+    private readonly updatePlayerNameUseCase: UpdatePlayerNameUseCase,
+    private readonly deletePlayerUseCase: DeletePlayerUseCase,
   ) {}
 
   @Post()
@@ -36,8 +42,7 @@ export class PlayersController {
 
   @Get()
   async findAll(@Param('roomId', ParseUUIDPipe) roomId: string) {
-    // TODO: Implement list players use case
-    return [];
+    return await this.getPlayersByRoomIdUseCase.execute({roomId});
   }
 
   @Patch(':id/score')
@@ -57,13 +62,12 @@ export class PlayersController {
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: UpdatePlayerDto,
   ) {
-    // TODO: Implement update player use case
-    return { id, ...dto };
+    return await this.updatePlayerNameUseCase.execute({playerId: id, ...dto});
   }
 
+  @HttpCode(204)
   @Delete(':id')
   async delete(@Param('id', ParseUUIDPipe) id: string) {
-    // TODO: Implement delete player use case
-    return { id };
+    return await this.deletePlayerUseCase.execute({playerId: id});
   }
 }

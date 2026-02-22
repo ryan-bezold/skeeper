@@ -1,4 +1,4 @@
-import { IsString, IsNotEmpty, IsIn, IsNumber } from 'class-validator';
+import {IsString, IsNotEmpty, IsIn, IsNumber, MaxLength} from 'class-validator';
 
 export class CreatePlayerDto {
   @IsString()
@@ -8,6 +8,8 @@ export class CreatePlayerDto {
 
 export class UpdatePlayerDto {
   @IsString()
+  @IsNotEmpty()
+  @MaxLength(255)
   @IsNotEmpty()
   name: string;
 }
