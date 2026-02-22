@@ -22,13 +22,14 @@ import {
     useToast,
     VStack,
 } from '@chakra-ui/react';
-import { CheckIcon, CloseIcon, DeleteIcon, EditIcon } from '@chakra-ui/icons';
+import { BellIcon, CheckIcon, CloseIcon, DeleteIcon, EditIcon } from '@chakra-ui/icons';
 import { motion } from 'framer-motion';
 import { usePlayerStore } from '@entities/player/model/playerStore';
 import { useWebSocketStore } from '@shared/model/websocketStore';
 import { useScoreHistoryStore } from '@entities/score-history/model/scoreHistoryStore';
 import { ScoreHistoryList } from '@widgets/score-history/ui/ScoreHistoryList.tsx';
 import { ScoreControls } from '@features/score-management';
+import { useNotificationStore } from '@features/score-notifications';
 
 interface PlayerCardProps {
     playerId: string;
@@ -44,6 +45,11 @@ export function PlayerCard({ playerId }: PlayerCardProps) {
 
     const subscribeToPlayer = useWebSocketStore((s) => s.subscribeToPlayer);
     const unsubscribeFromPlayer = useWebSocketStore((s) => s.unsubscribeFromPlayer);
+    const suppressNextScoreEvent = useWebSocketStore((s) => s.suppressNextScoreEvent);
+
+    const isMuted = useNotificationStore((s) => s.isMuted(playerId));
+    const mutePlayer = useNotificationStore((s) => s.mutePlayer);
+    const unmutePlayer = useNotificationStore((s) => s.unmutePlayer);
 
     const invalidatePlayer = useScoreHistoryStore((s) => s.invalidatePlayer);
 
@@ -113,6 +119,7 @@ export function PlayerCard({ playerId }: PlayerCardProps) {
             triggerAnimation(newScore > prevScore ? 'increment' : 'decrement');
         }
 
+        suppressNextScoreEvent(playerId);
         try {
             await updateScore(playerId, operation, value);
             // WebSocket event will confirm the actual score
@@ -206,16 +213,33 @@ export function PlayerCard({ playerId }: PlayerCardProps) {
                     )}
                     <HStack spacing={1} flexShrink={0}>
                         {!isEditing && (
-                            <Tooltip label="Rename" placement="top" hasArrow>
-                                <IconButton
-                                    aria-label="Rename player"
-                                    icon={<EditIcon />}
-                                    size="sm"
-                                    variant="ghost"
-                                    colorScheme="gray"
-                                    onClick={() => setIsEditing(true)}
-                                />
-                            </Tooltip>
+                            <>
+                                <Tooltip
+                                    label={isMuted ? 'Unmute notifications' : 'Mute notifications'}
+                                    placement="top"
+                                    hasArrow
+                                >
+                                    <IconButton
+                                        aria-label={isMuted ? 'Unmute notifications' : 'Mute notifications'}
+                                        icon={<BellIcon />}
+                                        size="sm"
+                                        variant="ghost"
+                                        colorScheme={isMuted ? 'gray' : 'yellow'}
+                                        opacity={isMuted ? 0.4 : 1}
+                                        onClick={() => isMuted ? unmutePlayer(playerId) : mutePlayer(playerId)}
+                                    />
+                                </Tooltip>
+                                <Tooltip label="Rename" placement="top" hasArrow>
+                                    <IconButton
+                                        aria-label="Rename player"
+                                        icon={<EditIcon />}
+                                        size="sm"
+                                        variant="ghost"
+                                        colorScheme="gray"
+                                        onClick={() => setIsEditing(true)}
+                                    />
+                                </Tooltip>
+                            </>
                         )}
                         <Tooltip label="Delete player" placement="top" hasArrow>
                             <IconButton
