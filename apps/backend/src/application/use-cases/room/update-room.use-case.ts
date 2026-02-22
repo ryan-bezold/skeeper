@@ -19,7 +19,7 @@ export class UpdateRoomUseCase {
 
     private readonly logger = new Logger(UpdateRoomUseCase.name);
 
-    async execute(dto: UpdateRoomDto): Promise<Room | null> {
+    async execute(dto: UpdateRoomDto): Promise<Room> {
         this.logger.debug('UpdateRoomUseCase execution started');
         let result: Room | null = null;
 
@@ -27,11 +27,10 @@ export class UpdateRoomUseCase {
 
         if (!room) {
             throw new NotFoundException(`Room with id ${dto.id} not found`);
-        } else {
-            this.logger.debug('Found room', room);
-            room.rename(dto.name)
-            result = await this.roomRepository.update(room);
         }
+
+        room.rename(dto.name)
+        result = await this.roomRepository.update(room);
 
         this.logger.debug('UpdateRoomUseCase finished execution')
         return result;

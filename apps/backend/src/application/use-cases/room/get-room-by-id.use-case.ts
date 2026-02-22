@@ -18,7 +18,7 @@ export class GetRoomByIdUseCase {
 
     private readonly logger = new Logger(GetRoomByIdUseCase.name);
 
-    async execute(dto: GetByRoomId): Promise<Room | null> {
+    async execute(dto: GetByRoomId): Promise<Room> {
         this.logger.debug("GetRoomByIdUseCase execution started");
 
         let result: Room | null = await this.roomRepository.findById(dto.roomId);
