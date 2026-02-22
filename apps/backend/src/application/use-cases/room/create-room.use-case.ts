@@ -1,4 +1,4 @@
-import { Inject, Injectable } from '@nestjs/common';
+import {Inject, Injectable, Logger} from '@nestjs/common';
 import { v4 as uuidv4 } from 'uuid';
 import { Room } from '@domain/entities/room.entity';
 import {
@@ -17,7 +17,11 @@ export class CreateRoomUseCase {
     private readonly roomRepository: IRoomRepository,
   ) {}
 
+  private readonly logger = new Logger(CreateRoomUseCase.name);
+
   async execute(dto: CreateRoomDto): Promise<Room> {
+    this.logger.debug("Execution started");
+
     const shareCode = this.generateShareCode();
     const room = new Room(
       uuidv4(),
@@ -27,10 +31,14 @@ export class CreateRoomUseCase {
       new Date(),
     );
 
-    return await this.roomRepository.create(room);
+    const result = await this.roomRepository.create(room);
+
+    this.logger.debug("Execution ended");
+    return result;
   }
 
   private generateShareCode(): string {
+    this.logger.debug("Generating share code");
     return uuidv4().slice(0, 8);
   }
 }

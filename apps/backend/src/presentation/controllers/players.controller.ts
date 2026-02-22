@@ -6,9 +6,15 @@ import {
   Patch,
   Body,
   Param,
+  ParseUUIDPipe,
 } from '@nestjs/common';
 import { CreatePlayerUseCase } from '@application/use-cases/player/create-player.use-case';
 import { UpdateScoreUseCase } from '@application/use-cases/player/update-score.use-case';
+import {
+  CreatePlayerDto,
+  UpdatePlayerDto,
+  UpdateScoreDto,
+} from '@presentation/dtos/player.dto';
 
 @Controller('rooms/:roomId/players')
 export class PlayersController {
@@ -19,41 +25,44 @@ export class PlayersController {
 
   @Post()
   async create(
-    @Param('roomId') roomId: string,
-    @Body() body: { name: string },
+    @Param('roomId', ParseUUIDPipe) roomId: string,
+    @Body() dto: CreatePlayerDto,
   ) {
     return await this.createPlayerUseCase.execute({
-      name: body.name,
+      name: dto.name,
       roomId,
     });
   }
 
   @Get()
-  async findAll(@Param('roomId') roomId: string) {
+  async findAll(@Param('roomId', ParseUUIDPipe) roomId: string) {
     // TODO: Implement list players use case
     return [];
   }
 
   @Patch(':id/score')
   async updateScore(
-    @Param('id') id: string,
-    @Body() body: { operation: 'increment' | 'decrement' | 'set'; value: number },
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: UpdateScoreDto,
   ) {
     return await this.updateScoreUseCase.execute({
       playerId: id,
-      operation: body.operation,
-      value: body.value,
+      operation: dto.operation,
+      value: dto.value,
     });
   }
 
   @Patch(':id')
-  async update(@Param('id') id: string, @Body() body: { name: string }) {
+  async update(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: UpdatePlayerDto,
+  ) {
     // TODO: Implement update player use case
-    return { id, ...body };
+    return { id, ...dto };
   }
 
   @Delete(':id')
-  async delete(@Param('id') id: string) {
+  async delete(@Param('id', ParseUUIDPipe) id: string) {
     // TODO: Implement delete player use case
     return { id };
   }
