@@ -29,7 +29,10 @@ export class RoomRepository implements IRoomRepository {
   }
 
   async findAll(): Promise<Room[]> {
-    const entities = await this.repository.find();
+    const entities = (await this.repository
+      .createQueryBuilder('room')
+      .loadRelationCountAndMap('room.playerCount', 'room.players')
+      .getMany()) as Array<RoomTypeOrmEntity & { playerCount: number }>;
     return entities.map((e) => this.toDomain(e));
   }
 
@@ -42,13 +45,14 @@ export class RoomRepository implements IRoomRepository {
     await this.repository.delete(id);
   }
 
-  private toDomain(entity: RoomTypeOrmEntity): Room {
+  private toDomain(entity: RoomTypeOrmEntity & { playerCount?: number }): Room {
     return new Room(
       entity.id,
       entity.name,
       entity.shareCode,
       entity.createdAt,
       entity.updatedAt,
+      entity.playerCount,
     );
   }
 
