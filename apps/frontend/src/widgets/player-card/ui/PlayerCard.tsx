@@ -23,10 +23,12 @@ import {
     VStack,
 } from '@chakra-ui/react';
 import { CheckIcon, CloseIcon, DeleteIcon, EditIcon } from '@chakra-ui/icons';
+import { motion } from 'framer-motion';
 import { Player } from '@entities/player/model/types.ts';
 import { playerApi } from '@entities/player/api/playerApi.ts';
 import { wsClient } from '@shared/api/websocket.ts';
 import { ScoreHistoryList } from '@widgets/score-history/ui/ScoreHistoryList.tsx';
+import { ScoreControls } from '@features/score-management';
 
 interface ScoreChangedEvent {
     playerId: string;
@@ -50,22 +52,42 @@ export function PlayerCard({ player, onDelete, onRename, onScoreUpdate }: Player
     const [isDeleting, setIsDeleting] = useState(false);
     const [isUpdatingScore, setIsUpdatingScore] = useState(false);
     const [historyKey, setHistoryKey] = useState(0);
+    const [animKey, setAnimKey] = useState(0);
+    const [animationType, setAnimationType] = useState<'increment' | 'decrement' | null>(null);
 
+    const animTimeoutRef = useRef<ReturnType<typeof setTimeout>>();
     const { isOpen: isDeleteOpen, onOpen: onDeleteOpen, onClose: onDeleteClose } = useDisclosure();
     const cancelRef = useRef<HTMLButtonElement>(null);
+
+    useEffect(() => {
+        return () => clearTimeout(animTimeoutRef.current);
+    }, []);
 
     // Keep local score in sync if parent re-renders with updated player
     useEffect(() => {
         setScore(player.score);
     }, [player.score]);
 
+    const triggerAnimation = (type: 'increment' | 'decrement') => {
+        clearTimeout(animTimeoutRef.current);
+        setAnimationType(type);
+        setAnimKey((k) => k + 1);
+        animTimeoutRef.current = setTimeout(() => setAnimationType(null), 600);
+    };
+
     // Real-time score updates via WebSocket
     const handleScoreChanged = useCallback((event: ScoreChangedEvent) => {
         if (event.playerId === player.id) {
-            setScore(event.newScore);
+            setScore((prev) => {
+                if (event.newScore !== prev) {
+                    triggerAnimation(event.newScore > prev ? 'increment' : 'decrement');
+                }
+                return event.newScore;
+            });
             onScoreUpdate(player.id, event.newScore);
             setHistoryKey((k) => k + 1);
         }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [player.id, onScoreUpdate]);
 
     useEffect(() => {
@@ -79,16 +101,29 @@ export function PlayerCard({ player, onDelete, onRename, onScoreUpdate }: Player
         };
     }, [player.id, handleScoreChanged]);
 
-    const handleScoreAdjust = async (operation: 'increment' | 'decrement', value: number) => {
+    const handleScoreAdjust = async (operation: 'increment' | 'decrement' | 'set', value: number) => {
         if (isUpdatingScore) return;
         setIsUpdatingScore(true);
+
+        const prevScore = score;
+        const newScore =
+            operation === 'increment' ? score + value :
+            operation === 'decrement' ? score - value :
+            value;
+
+        if (newScore !== prevScore) {
+            triggerAnimation(newScore > prevScore ? 'increment' : 'decrement');
+        }
+
         // Optimistic update
-        setScore((prev) => operation === 'increment' ? prev + value : prev - value);
+        setScore(newScore);
+
         try {
             await playerApi.updateScore(player.id, { operation, value });
             // WS event will confirm the actual new score
         } catch {
-            setScore(player.score); // revert to last known good
+            setScore(prevScore);
+            setAnimationType(null);
             toast({ title: 'Failed to update score', status: 'error', duration: 3000, isClosable: true });
         } finally {
             setIsUpdatingScore(false);
@@ -126,6 +161,11 @@ export function PlayerCard({ player, onDelete, onRename, onScoreUpdate }: Player
             setIsDeleting(false);
         }
     };
+
+    const scoreColor =
+        animationType === 'increment' ? 'green.300' :
+        animationType === 'decrement' ? 'red.300' :
+        'white';
 
     return (
         <>
@@ -200,61 +240,26 @@ export function PlayerCard({ player, onDelete, onRename, onScoreUpdate }: Player
 
                 {/* Score display + controls */}
                 <VStack spacing={3} mb={4}>
-                    <Text
-                        fontSize="6xl"
-                        fontWeight="black"
-                        lineHeight={1}
-                        color="white"
-                        sx={{ fontVariantNumeric: 'tabular-nums' }}
+                    <motion.div
+                        key={animKey}
+                        initial={animKey === 0 ? false : { scale: 1.2 }}
+                        animate={{ scale: 1 }}
+                        transition={{ duration: 0.4, ease: 'easeOut' }}
+                        style={{ display: 'inline-block' }}
                     >
-                        {score}
-                    </Text>
-                    <HStack spacing={2}>
-                        <Button
-                            size="sm"
-                            variant="outline"
-                            colorScheme="red"
-                            minW="44px"
-                            onClick={() => handleScoreAdjust('decrement', 5)}
-                            isLoading={isUpdatingScore}
-                            loadingText=""
+                        <Text
+                            fontSize="6xl"
+                            fontWeight="black"
+                            lineHeight={1}
+                            color={scoreColor}
+                            transition="color 0.4s ease"
+                            sx={{ fontVariantNumeric: 'tabular-nums' }}
                         >
-                            −5
-                        </Button>
-                        <Button
-                            size="md"
-                            variant="outline"
-                            colorScheme="red"
-                            minW="52px"
-                            onClick={() => handleScoreAdjust('decrement', 1)}
-                            isLoading={isUpdatingScore}
-                            loadingText=""
-                        >
-                            −1
-                        </Button>
-                        <Button
-                            size="md"
-                            variant="outline"
-                            colorScheme="green"
-                            minW="52px"
-                            onClick={() => handleScoreAdjust('increment', 1)}
-                            isLoading={isUpdatingScore}
-                            loadingText=""
-                        >
-                            +1
-                        </Button>
-                        <Button
-                            size="sm"
-                            variant="outline"
-                            colorScheme="green"
-                            minW="44px"
-                            onClick={() => handleScoreAdjust('increment', 5)}
-                            isLoading={isUpdatingScore}
-                            loadingText=""
-                        >
-                            +5
-                        </Button>
-                    </HStack>
+                            {score}
+                        </Text>
+                    </motion.div>
+
+                    <ScoreControls isLoading={isUpdatingScore} onAdjust={handleScoreAdjust} />
                 </VStack>
 
                 {/* Score history accordion */}
