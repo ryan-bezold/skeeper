@@ -18,6 +18,10 @@ export const roomApi = {
     return apiClient.patch<Room>(`/rooms/${id}`, data);
   },
 
+  getByShareCode: (shareCode: string): Promise<Room> => {
+    return apiClient.get<Room>(`/rooms/code/${shareCode}`);
+  },
+
   delete: (id: string): Promise<void> => {
     return apiClient.delete(`/rooms/${id}`);
   },

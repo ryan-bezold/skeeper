@@ -28,6 +28,7 @@ import {
 import {DeleteRoomUseCase} from "@application/use-cases/room/delete-room.use-case";
 import {GetAllRoomsUseCase} from "@application/use-cases/room/get-all-rooms.use-case";
 import {GetRoomByIdUseCase} from "@application/use-cases/room/get-room-by-id.use-case";
+import {GetRoomByShareCodeUseCase} from "@application/use-cases/room/get-room-by-share-code.use-case";
 import {UpdateRoomUseCase} from "@application/use-cases/room/update-room.use-case";
 import {GetPlayersByRoomIdUseCase} from "@application/use-cases/player/get-players-by-room-id.use-case";
 import {UpdatePlayerNameUseCase} from "@application/use-cases/player/update-player-name.use-case";
@@ -69,6 +70,7 @@ import { SCORE_EVENT_PUBLISHER } from '@application/ports/score-event-publisher.
     DeleteRoomUseCase,
     GetAllRoomsUseCase,
     GetRoomByIdUseCase,
+    GetRoomByShareCodeUseCase,
     UpdateRoomUseCase,
     CreatePlayerUseCase,
     UpdateScoreUseCase,
