@@ -25,6 +25,10 @@ import {
 import {
   SCORE_HISTORY_REPOSITORY,
 } from '@domain/repositories/score-history.repository.interface';
+import {DeleteRoomUseCase} from "@application/use-cases/room/delete-room.use-case";
+import {GetAllRoomsUseCase} from "@application/use-cases/room/get-all-rooms.use-case";
+import {GetRoomByIdUseCase} from "@application/use-cases/room/get-room-by-id.use-case";
+import {UpdateRoomUseCase} from "@application/use-cases/room/update-room.use-case";
 
 @Module({
   imports: [
@@ -58,6 +62,10 @@ import {
   providers: [
     ScoreGateway,
     CreateRoomUseCase,
+    DeleteRoomUseCase,
+    GetAllRoomsUseCase,
+    GetRoomByIdUseCase,
+    UpdateRoomUseCase,
     CreatePlayerUseCase,
     UpdateScoreUseCase,
     GetPlayerScoreHistoryUseCase,
