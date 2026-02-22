@@ -23,6 +23,12 @@ CMD ["pnpm", "--filter", "@skeeper/frontend", "dev"]
 
 # Production build
 FROM base AS build
+ARG VITE_API_URL
+ARG VITE_WS_URL
+ARG VITE_ENV=production
+ENV VITE_API_URL=$VITE_API_URL
+ENV VITE_WS_URL=$VITE_WS_URL
+ENV VITE_ENV=$VITE_ENV
 RUN pnpm --filter @skeeper/frontend build
 
 # Production stage

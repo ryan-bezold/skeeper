@@ -79,7 +79,21 @@ docker compose -f docker-compose.prod.yml --env-file .env.prod up -d --build
 - [ ] `DATABASE_PASSWORD` — must match `POSTGRES_PASSWORD`
 - [ ] `CORS_ORIGIN` — your frontend domain (e.g. `https://skeeper.example.com`)
 - [ ] `VITE_API_URL` — your backend domain (e.g. `https://api.skeeper.example.com`)
-- [ ] `VITE_WS_URL` — same host with `wss://` scheme
+- [ ] `VITE_WS_URL` — same host with `wss://` scheme (e.g. `wss://api.skeeper.example.com`)
+
+### Port mapping (production)
+
+The production compose exposes only two host ports for your reverse proxy to target:
+
+| Service | Host port | Container port |
+|---|---|---|
+| Frontend (nginx) | `8080` | `80` |
+| Backend (NestJS) | `3000` | `3000` |
+| PostgreSQL | *(none — internal only)* | `5432` |
+
+Configure your external reverse proxy to forward:
+- `https://your-frontend-domain` → `http://127.0.0.1:8080`
+- `https://your-api-domain` → `http://127.0.0.1:3000` (with WebSocket upgrade headers)
 
 ### Security notes
 
