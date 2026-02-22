@@ -66,7 +66,7 @@ export function ScoreHistoryList({ playerId, roomId }: ScoreHistoryListProps) {
     );
   }
 
-  const getChangeIcon = (changeType: string, changeAmount: number) => {
+  const getChangeIcon = (changeAmount: number) => {
     if (changeAmount > 0) {
       return <ArrowUpIcon color="green.400" />;
     } else if (changeAmount < 0) {
@@ -94,7 +94,7 @@ export function ScoreHistoryList({ playerId, roomId }: ScoreHistoryListProps) {
         >
           <HStack justify="space-between" flexWrap={{ base: 'wrap', sm: 'nowrap' }}>
             <HStack spacing={{ base: 2, md: 3 }} flex={1}>
-              {getChangeIcon(entry.changeType, entry.changeAmount)}
+              {getChangeIcon(entry.changeAmount)}
               <Box>
                 <Text fontSize={{ base: 'xs', md: 'sm' }} color="gray.400">
                   {new Date(entry.createdAt).toLocaleString()}
