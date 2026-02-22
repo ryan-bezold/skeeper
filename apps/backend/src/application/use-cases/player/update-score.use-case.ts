@@ -10,7 +10,10 @@ import {
   IScoreHistoryRepository,
   SCORE_HISTORY_REPOSITORY,
 } from '@domain/repositories/score-history.repository.interface';
-import { ScoreGateway } from '@presentation/gateways/score.gateway';
+import {
+  IScoreEventPublisher,
+  SCORE_EVENT_PUBLISHER,
+} from '@application/ports/score-event-publisher.interface';
 
 export type ScoreOperation = 'increment' | 'decrement' | 'set';
 
@@ -27,7 +30,8 @@ export class UpdateScoreUseCase {
     private readonly playerRepository: IPlayerRepository,
     @Inject(SCORE_HISTORY_REPOSITORY)
     private readonly scoreHistoryRepository: IScoreHistoryRepository,
-    private readonly scoreGateway: ScoreGateway,
+    @Inject(SCORE_EVENT_PUBLISHER)
+    private readonly scoreEventPublisher: IScoreEventPublisher,
   ) {}
 
   async execute(dto: UpdateScoreDto): Promise<Player> {
@@ -63,7 +67,7 @@ export class UpdateScoreUseCase {
 
     const updatedPlayer = await this.playerRepository.update(player);
 
-    this.scoreGateway.emitScoreChanged({
+    this.scoreEventPublisher.emitScoreChanged({
       playerId: updatedPlayer.id,
       playerName: updatedPlayer.name,
       roomId: updatedPlayer.roomId,
