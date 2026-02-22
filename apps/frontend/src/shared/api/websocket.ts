@@ -1,6 +1,7 @@
 import { io, Socket } from 'socket.io-client';
+import { env } from '@shared/config/env';
 
-const WS_URL = import.meta.env.VITE_WS_URL || 'ws://localhost:3000';
+const WS_URL = env.wsUrl;
 
 class WebSocketClient {
   private socket: Socket | null = null;
