@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
     Box,
@@ -27,8 +27,7 @@ import {
 } from '@chakra-ui/react';
 import { AddIcon, SearchIcon } from '@chakra-ui/icons';
 import { MdQrCodeScanner } from 'react-icons/md';
-import { roomApi } from '@entities/room/api/roomApi';
-import { Room } from '@entities/room/model/types.ts';
+import { useRoomStore } from '@entities/room/model/roomStore';
 import { RoomCard } from '@widgets/room-card/ui/RoomCard.tsx';
 
 function RoomCardSkeleton() {
@@ -49,11 +48,14 @@ export function RoomListPage() {
     const navigate = useNavigate();
     const toast = useToast();
 
-    const [isCreating, setIsCreating] = useState(false);
-    const [isLoading, setIsLoading] = useState(true);
-    const [rooms, setRooms] = useState<Room[]>([]);
-    const [search, setSearch] = useState('');
+    const rooms = useRoomStore((s) => s.rooms);
+    const isLoadingRooms = useRoomStore((s) => s.isLoadingRooms);
+    const isCreating = useRoomStore((s) => s.isCreating);
+    const fetchRooms = useRoomStore((s) => s.fetchRooms);
+    const createRoom = useRoomStore((s) => s.createRoom);
+    const joinByShareCode = useRoomStore((s) => s.joinByShareCode);
 
+    const [search, setSearch] = useState('');
     const { isOpen: isJoinOpen, onOpen: onJoinOpen, onClose: onJoinClose } = useDisclosure();
     const [joinCode, setJoinCode] = useState('');
     const [isJoining, setIsJoining] = useState(false);
@@ -62,13 +64,39 @@ export function RoomListPage() {
         r.name.toLowerCase().includes(search.toLowerCase()),
     );
 
+    useEffect(() => {
+        fetchRooms().catch(() => {
+            toast({
+                title: 'Failed to load rooms',
+                status: 'error',
+                duration: 3000,
+                isClosable: true,
+            });
+        });
+    }, [fetchRooms, toast]);
+
+    const handleCreateRoom = async () => {
+        try {
+            const room = await createRoom();
+            navigate(`/rooms/${room.id}`);
+        } catch {
+            toast({
+                title: 'Failed to create room',
+                description: 'Please try again.',
+                status: 'error',
+                duration: 3000,
+                isClosable: true,
+            });
+        }
+    };
+
     const handleJoinRoom = async () => {
         const code = joinCode.trim();
         if (!code) return;
 
         setIsJoining(true);
         try {
-            const room = await roomApi.getByShareCode(code);
+            const room = await joinByShareCode(code);
             onJoinClose();
             setJoinCode('');
             navigate(`/rooms/${room.id}`);
@@ -85,53 +113,15 @@ export function RoomListPage() {
         }
     };
 
-    const handleCreateRoom = async () => {
-        setIsCreating(true);
-        try {
-            const room = await roomApi.create({ name: 'New Game Room' });
-            navigate(`/rooms/${room.id}`);
-        } catch {
-            toast({
-                title: 'Failed to create room',
-                description: 'Please try again.',
-                status: 'error',
-                duration: 3000,
-                isClosable: true,
-            });
-        } finally {
-            setIsCreating(false);
-        }
+    const handleDelete = (_id: string) => {
+        toast({ title: 'Room deleted', status: 'success', duration: 2000, isClosable: true });
+        // Store already updated optimistically in RoomCard
     };
 
-    const handleDelete = useCallback((id: string) => {
-        setRooms((prev) => prev.filter((r) => r.id !== id));
-        toast({ title: 'Room deleted', status: 'success', duration: 2000, isClosable: true });
-    }, [toast]);
-
-    const handleRename = useCallback((id: string, name: string) => {
-        setRooms((prev) => prev.map((r) => r.id === id ? { ...r, name } : r));
+    const handleRename = (_id: string, _name: string) => {
         toast({ title: 'Room renamed', status: 'success', duration: 2000, isClosable: true });
-    }, [toast]);
-
-    useEffect(() => {
-        const fetchRooms = async () => {
-            setIsLoading(true);
-            try {
-                const data = await roomApi.getAll();
-                setRooms(data);
-            } catch {
-                toast({
-                    title: 'Failed to load rooms',
-                    status: 'error',
-                    duration: 3000,
-                    isClosable: true,
-                });
-            } finally {
-                setIsLoading(false);
-            }
-        };
-        fetchRooms();
-    }, [toast]);
+        // Store already updated optimistically in RoomCard
+    };
 
     return (
         <Box minH="100vh" bg="gray.900">
@@ -175,14 +165,14 @@ export function RoomListPage() {
                             <Heading size={{ base: 'md', md: 'lg' }}>
                                 Your Rooms
                             </Heading>
-                            {!isLoading && rooms.length > 0 && (
+                            {!isLoadingRooms && rooms.length > 0 && (
                                 <Text fontSize="sm" color="gray.500">
                                     {filteredRooms.length} of {rooms.length}
                                 </Text>
                             )}
                         </HStack>
 
-                        {!isLoading && rooms.length > 1 && (
+                        {!isLoadingRooms && rooms.length > 1 && (
                             <InputGroup mb={4}>
                                 <InputLeftElement pointerEvents="none">
                                     <SearchIcon color="gray.500" />
@@ -199,7 +189,7 @@ export function RoomListPage() {
                             </InputGroup>
                         )}
 
-                        {isLoading && (
+                        {isLoadingRooms && rooms.length === 0 && (
                             <>
                                 <RoomCardSkeleton />
                                 <RoomCardSkeleton />
@@ -207,15 +197,15 @@ export function RoomListPage() {
                             </>
                         )}
 
-                        {!isLoading && rooms.length === 0 && (
+                        {!isLoadingRooms && rooms.length === 0 && (
                             <Text color="gray.500">No rooms yet. Create one to get started!</Text>
                         )}
 
-                        {!isLoading && rooms.length > 0 && filteredRooms.length === 0 && (
+                        {!isLoadingRooms && rooms.length > 0 && filteredRooms.length === 0 && (
                             <Text color="gray.500">No rooms match "{search}".</Text>
                         )}
 
-                        {!isLoading && filteredRooms.map((room) => (
+                        {filteredRooms.map((room) => (
                             <RoomCard
                                 key={room.id}
                                 room={room}

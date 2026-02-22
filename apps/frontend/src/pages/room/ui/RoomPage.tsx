@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
     Badge,
@@ -27,10 +27,8 @@ import {
 import { AddIcon, ArrowBackIcon, CheckIcon, CopyIcon } from '@chakra-ui/icons';
 import { MdQrCode2 } from 'react-icons/md';
 import { QRCodeSVG } from 'qrcode.react';
-import { roomApi } from '@entities/room/api/roomApi.ts';
-import { playerApi } from '@entities/player/api/playerApi.ts';
-import { Room } from '@entities/room/model/types.ts';
-import { Player } from '@entities/player/model/types.ts';
+import { useRoomStore } from '@entities/room/model/roomStore';
+import { usePlayerStore } from '@entities/player/model/playerStore';
 import { PlayerCard } from '@widgets/player-card/ui/PlayerCard.tsx';
 
 function PlayerCardSkeleton() {
@@ -62,48 +60,41 @@ export function RoomPage() {
     const navigate = useNavigate();
     const toast = useToast();
 
-    const [room, setRoom] = useState<Room | null>(null);
-    const [players, setPlayers] = useState<Player[]>([]);
-    const [isLoadingRoom, setIsLoadingRoom] = useState(true);
-    const [isLoadingPlayers, setIsLoadingPlayers] = useState(true);
+    const currentRoom = useRoomStore((s) => s.currentRoom);
+    const isLoadingRoom = useRoomStore((s) => s.isLoadingRoom);
+    const fetchRoom = useRoomStore((s) => s.fetchRoom);
+    const setCurrentRoom = useRoomStore((s) => s.setCurrentRoom);
+
+    const players = usePlayerStore((s) => s.players);
+    const isLoadingPlayers = usePlayerStore((s) => s.isLoading);
+    const fetchPlayers = usePlayerStore((s) => s.fetchPlayers);
+    const addPlayer = usePlayerStore((s) => s.addPlayer);
+    const clearPlayers = usePlayerStore((s) => s.clearPlayers);
+
     const [newPlayerName, setNewPlayerName] = useState('');
     const [isAddingPlayer, setIsAddingPlayer] = useState(false);
 
     const newPlayerInputRef = useRef<HTMLInputElement>(null);
 
-    const { onCopy, hasCopied } = useClipboard(room?.shareCode ?? '');
+    const { onCopy, hasCopied } = useClipboard(currentRoom?.shareCode ?? '');
     const { isOpen: isQrOpen, onOpen: onQrOpen, onClose: onQrClose } = useDisclosure();
 
     useEffect(() => {
         if (!id) return;
 
-        const fetchRoom = async () => {
-            setIsLoadingRoom(true);
-            try {
-                const data = await roomApi.getById(id);
-                setRoom(data);
-            } catch {
-                toast({ title: 'Failed to load room', status: 'error', duration: 3000, isClosable: true });
-            } finally {
-                setIsLoadingRoom(false);
-            }
-        };
+        fetchRoom(id).catch(() => {
+            toast({ title: 'Failed to load room', status: 'error', duration: 3000, isClosable: true });
+        });
 
-        const fetchPlayers = async () => {
-            setIsLoadingPlayers(true);
-            try {
-                const data = await playerApi.getByRoomId(id);
-                setPlayers(data);
-            } catch {
-                toast({ title: 'Failed to load players', status: 'error', duration: 3000, isClosable: true });
-            } finally {
-                setIsLoadingPlayers(false);
-            }
-        };
+        fetchPlayers(id).catch(() => {
+            toast({ title: 'Failed to load players', status: 'error', duration: 3000, isClosable: true });
+        });
 
-        fetchRoom();
-        fetchPlayers();
-    }, [id, toast]);
+        return () => {
+            setCurrentRoom(null);
+            clearPlayers();
+        };
+    }, [id, fetchRoom, fetchPlayers, setCurrentRoom, clearPlayers, toast]);
 
     const handleAddPlayer = async () => {
         const name = newPlayerName.trim();
@@ -111,8 +102,7 @@ export function RoomPage() {
 
         setIsAddingPlayer(true);
         try {
-            const player = await playerApi.create(id, { name });
-            setPlayers((prev) => [...prev, player]);
+            await addPlayer(id, name);
             setNewPlayerName('');
             newPlayerInputRef.current?.focus();
         } catch {
@@ -121,18 +111,6 @@ export function RoomPage() {
             setIsAddingPlayer(false);
         }
     };
-
-    const handleDeletePlayer = useCallback((playerId: string) => {
-        setPlayers((prev) => prev.filter((p) => p.id !== playerId));
-    }, []);
-
-    const handleRenamePlayer = useCallback((playerId: string, name: string) => {
-        setPlayers((prev) => prev.map((p) => p.id === playerId ? { ...p, name } : p));
-    }, []);
-
-    const handleScoreUpdate = useCallback((playerId: string, score: number) => {
-        setPlayers((prev) => prev.map((p) => p.id === playerId ? { ...p, score } : p));
-    }, []);
 
     const roomUrl = `${window.location.origin}/rooms/${id}`;
 
@@ -163,10 +141,10 @@ export function RoomPage() {
                                 <Skeleton height="36px" width="50%" mb={3} />
                                 <Skeleton height="28px" width="160px" />
                             </>
-                        ) : room ? (
+                        ) : currentRoom ? (
                             <>
                                 <Heading size={{ base: 'lg', md: 'xl' }} mb={3}>
-                                    {room.name}
+                                    {currentRoom.name}
                                 </Heading>
                                 <HStack spacing={2} flexWrap="wrap">
                                     <Text fontSize="sm" color="gray.400">Share code:</Text>
@@ -179,7 +157,7 @@ export function RoomPage() {
                                         px={2}
                                         py={1}
                                     >
-                                        {room.shareCode}
+                                        {currentRoom.shareCode}
                                     </Badge>
                                     <Tooltip label={hasCopied ? 'Copied!' : 'Copy code'} placement="top" hasArrow>
                                         <IconButton
@@ -264,10 +242,7 @@ export function RoomPage() {
                         {!isLoadingPlayers && players.map((player) => (
                             <PlayerCard
                                 key={player.id}
-                                player={player}
-                                onDelete={handleDeletePlayer}
-                                onRename={handleRenamePlayer}
-                                onScoreUpdate={handleScoreUpdate}
+                                playerId={player.id}
                             />
                         ))}
                     </Box>
@@ -293,7 +268,7 @@ export function RoomPage() {
                                     fontWeight="bold"
                                     letterSpacing="widest"
                                 >
-                                    {room?.shareCode}
+                                    {currentRoom?.shareCode}
                                 </Text>
                             </VStack>
                         </VStack>

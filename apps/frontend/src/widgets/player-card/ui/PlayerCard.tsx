@@ -24,30 +24,31 @@ import {
 } from '@chakra-ui/react';
 import { CheckIcon, CloseIcon, DeleteIcon, EditIcon } from '@chakra-ui/icons';
 import { motion } from 'framer-motion';
-import { Player } from '@entities/player/model/types.ts';
-import { playerApi } from '@entities/player/api/playerApi.ts';
-import { wsClient } from '@shared/api/websocket.ts';
+import { usePlayerStore } from '@entities/player/model/playerStore';
+import { useWebSocketStore } from '@shared/model/websocketStore';
+import { useScoreHistoryStore } from '@entities/score-history/model/scoreHistoryStore';
 import { ScoreHistoryList } from '@widgets/score-history/ui/ScoreHistoryList.tsx';
 import { ScoreControls } from '@features/score-management';
 
-interface ScoreChangedEvent {
-    playerId: string;
-    newScore: number;
-}
-
 interface PlayerCardProps {
-    player: Player;
-    onDelete: (id: string) => void;
-    onRename: (id: string, name: string) => void;
-    onScoreUpdate: (id: string, score: number) => void;
+    playerId: string;
 }
 
-export function PlayerCard({ player, onDelete, onRename, onScoreUpdate }: PlayerCardProps) {
+export function PlayerCard({ playerId }: PlayerCardProps) {
     const toast = useToast();
 
-    const [score, setScore] = useState(player.score);
+    const player = usePlayerStore((s) => s.players.find((p) => p.id === playerId));
+    const updateScore = usePlayerStore((s) => s.updateScore);
+    const renamePlayer = usePlayerStore((s) => s.renamePlayer);
+    const deletePlayer = usePlayerStore((s) => s.deletePlayer);
+
+    const subscribeToPlayer = useWebSocketStore((s) => s.subscribeToPlayer);
+    const unsubscribeFromPlayer = useWebSocketStore((s) => s.unsubscribeFromPlayer);
+
+    const invalidatePlayer = useScoreHistoryStore((s) => s.invalidatePlayer);
+
     const [isEditing, setIsEditing] = useState(false);
-    const [editName, setEditName] = useState(player.name);
+    const [editName, setEditName] = useState(player?.name ?? '');
     const [isSaving, setIsSaving] = useState(false);
     const [isDeleting, setIsDeleting] = useState(false);
     const [isUpdatingScore, setIsUpdatingScore] = useState(false);
@@ -55,75 +56,68 @@ export function PlayerCard({ player, onDelete, onRename, onScoreUpdate }: Player
     const [animKey, setAnimKey] = useState(0);
     const [animationType, setAnimationType] = useState<'increment' | 'decrement' | null>(null);
 
+    const prevScoreRef = useRef(player?.score ?? 0);
     const animTimeoutRef = useRef<ReturnType<typeof setTimeout>>();
     const { isOpen: isDeleteOpen, onOpen: onDeleteOpen, onClose: onDeleteClose } = useDisclosure();
     const cancelRef = useRef<HTMLButtonElement>(null);
+
+    // Subscribe/unsubscribe via WebSocket store
+    useEffect(() => {
+        subscribeToPlayer(playerId);
+        return () => unsubscribeFromPlayer(playerId);
+    }, [playerId, subscribeToPlayer, unsubscribeFromPlayer]);
 
     useEffect(() => {
         return () => clearTimeout(animTimeoutRef.current);
     }, []);
 
-    // Keep local score in sync if parent re-renders with updated player
+    // Sync editName when player name changes externally
     useEffect(() => {
-        setScore(player.score);
-    }, [player.score]);
+        if (player && !isEditing) {
+            setEditName(player.name);
+        }
+    }, [player?.name, isEditing]);
 
-    const triggerAnimation = (type: 'increment' | 'decrement') => {
+    const triggerAnimation = useCallback((type: 'increment' | 'decrement') => {
         clearTimeout(animTimeoutRef.current);
         setAnimationType(type);
         setAnimKey((k) => k + 1);
         animTimeoutRef.current = setTimeout(() => setAnimationType(null), 600);
-    };
+    }, []);
 
-    // Real-time score updates via WebSocket
-    const handleScoreChanged = useCallback((event: ScoreChangedEvent) => {
-        if (event.playerId === player.id) {
-            setScore((prev) => {
-                if (event.newScore !== prev) {
-                    triggerAnimation(event.newScore > prev ? 'increment' : 'decrement');
-                }
-                return event.newScore;
-            });
-            onScoreUpdate(player.id, event.newScore);
-            setHistoryKey((k) => k + 1);
-        }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [player.id, onScoreUpdate]);
-
+    // Detect score changes from the store (WebSocket updates) and animate
     useEffect(() => {
-        const socket = wsClient.connect();
-        socket.emit('subscribe_to_player', { playerId: player.id });
-        socket.on('score_changed', handleScoreChanged);
+        if (!player) return;
+        const prev = prevScoreRef.current;
+        if (player.score !== prev) {
+            triggerAnimation(player.score > prev ? 'increment' : 'decrement');
+            prevScoreRef.current = player.score;
+            setHistoryKey((k) => k + 1);
+            invalidatePlayer(playerId);
+        }
+    }, [player?.score, playerId, triggerAnimation, invalidatePlayer]);
 
-        return () => {
-            socket.off('score_changed', handleScoreChanged);
-            socket.emit('unsubscribe_from_player', { playerId: player.id });
-        };
-    }, [player.id, handleScoreChanged]);
+    if (!player) return null;
 
     const handleScoreAdjust = async (operation: 'increment' | 'decrement' | 'set', value: number) => {
         if (isUpdatingScore) return;
         setIsUpdatingScore(true);
 
-        const prevScore = score;
+        const prevScore = player.score;
         const newScore =
-            operation === 'increment' ? score + value :
-            operation === 'decrement' ? score - value :
+            operation === 'increment' ? prevScore + value :
+            operation === 'decrement' ? prevScore - value :
             value;
 
         if (newScore !== prevScore) {
             triggerAnimation(newScore > prevScore ? 'increment' : 'decrement');
         }
 
-        // Optimistic update
-        setScore(newScore);
-
         try {
-            await playerApi.updateScore(player.id, { operation, value });
-            // WS event will confirm the actual new score
+            await updateScore(playerId, operation, value);
+            // WebSocket event will confirm the actual score
         } catch {
-            setScore(prevScore);
-            setAnimationType(null);
+            triggerAnimation(prevScore > newScore ? 'increment' : 'decrement');
             toast({ title: 'Failed to update score', status: 'error', duration: 3000, isClosable: true });
         } finally {
             setIsUpdatingScore(false);
@@ -139,8 +133,7 @@ export function PlayerCard({ player, onDelete, onRename, onScoreUpdate }: Player
         }
         setIsSaving(true);
         try {
-            await playerApi.update(player.id, { name: trimmed });
-            onRename(player.id, trimmed);
+            await renamePlayer(playerId, trimmed);
             setIsEditing(false);
         } catch {
             toast({ title: 'Failed to rename player', status: 'error', duration: 3000, isClosable: true });
@@ -153,8 +146,7 @@ export function PlayerCard({ player, onDelete, onRename, onScoreUpdate }: Player
     const handleDelete = async () => {
         setIsDeleting(true);
         try {
-            await playerApi.delete(player.id);
-            onDelete(player.id);
+            await deletePlayer(playerId);
             onDeleteClose();
         } catch {
             toast({ title: 'Failed to delete player', status: 'error', duration: 3000, isClosable: true });
@@ -255,7 +247,7 @@ export function PlayerCard({ player, onDelete, onRename, onScoreUpdate }: Player
                             transition="color 0.4s ease"
                             sx={{ fontVariantNumeric: 'tabular-nums' }}
                         >
-                            {score}
+                            {player.score}
                         </Text>
                     </motion.div>
 
@@ -277,7 +269,7 @@ export function PlayerCard({ player, onDelete, onRename, onScoreUpdate }: Player
                             <AccordionIcon />
                         </AccordionButton>
                         <AccordionPanel px={0} pt={2}>
-                            <ScoreHistoryList key={historyKey} playerId={player.id} />
+                            <ScoreHistoryList key={historyKey} playerId={playerId} />
                         </AccordionPanel>
                     </AccordionItem>
                 </Accordion>

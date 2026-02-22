@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import {
   Box,
   VStack,
@@ -6,11 +6,10 @@ import {
   Badge,
   HStack,
   Spinner,
-  useToast,
 } from '@chakra-ui/react';
 import { ArrowUpIcon, ArrowDownIcon } from '@chakra-ui/icons';
 import { ScoreHistory } from '@entities/score-history/model/types';
-import { scoreHistoryApi } from '@entities/score-history/api/scoreHistoryApi';
+import { useScoreHistoryStore } from '@entities/score-history/model/scoreHistoryStore';
 
 interface ScoreHistoryListProps {
   playerId?: string;
@@ -18,39 +17,26 @@ interface ScoreHistoryListProps {
 }
 
 export function ScoreHistoryList({ playerId, roomId }: ScoreHistoryListProps) {
-  const [history, setHistory] = useState<ScoreHistory[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const toast = useToast();
+  const historyByPlayer = useScoreHistoryStore((s) => s.historyByPlayer);
+  const historyByRoom = useScoreHistoryStore((s) => s.historyByRoom);
+  const loadingKeys = useScoreHistoryStore((s) => s.loadingKeys);
+  const fetchByPlayerId = useScoreHistoryStore((s) => s.fetchByPlayerId);
+  const fetchByRoomId = useScoreHistoryStore((s) => s.fetchByRoomId);
+
+  const key = playerId ? `player:${playerId}` : roomId ? `room:${roomId}` : null;
+  const isLoading = key ? loadingKeys.includes(key) : false;
+  const history: ScoreHistory[] =
+    (playerId ? historyByPlayer[playerId] : roomId ? historyByRoom[roomId] : undefined) ?? [];
 
   useEffect(() => {
-    const fetchHistory = async () => {
-      setIsLoading(true);
-      try {
-        if (playerId) {
-          const data = await scoreHistoryApi.getByPlayerId(playerId);
-          setHistory(data);
-        } else if (roomId) {
-          const data = await scoreHistoryApi.getByRoomId(roomId);
-          setHistory(data);
-        }
-      } catch (error) {
-        console.error('Failed to fetch score history:', error);
-        toast({
-          title: 'Error',
-          description: 'Failed to load score history',
-          status: 'error',
-          duration: 3000,
-          isClosable: true,
-        });
-      } finally {
-        setIsLoading(false);
-      }
-    };
+    if (playerId) {
+      fetchByPlayerId(playerId);
+    } else if (roomId) {
+      fetchByRoomId(roomId);
+    }
+  }, [playerId, roomId, fetchByPlayerId, fetchByRoomId]);
 
-    fetchHistory();
-  }, [playerId, roomId, toast]);
-
-  if (isLoading) {
+  if (isLoading && history.length === 0) {
     return (
       <Box textAlign="center" py={8}>
         <Spinner size="lg" />
@@ -58,7 +44,7 @@ export function ScoreHistoryList({ playerId, roomId }: ScoreHistoryListProps) {
     );
   }
 
-  if (history.length === 0) {
+  if (!isLoading && history.length === 0) {
     return (
       <Box textAlign="center" py={8}>
         <Text color="gray.500">No score changes yet</Text>

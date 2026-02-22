@@ -23,7 +23,7 @@ import {
 import { CheckIcon, ChevronRightIcon, CopyIcon, DeleteIcon, EditIcon } from '@chakra-ui/icons';
 import { BsPeople } from 'react-icons/bs';
 import { Room } from '@entities/room/model/types.ts';
-import { roomApi } from '@entities/room/api/roomApi.ts';
+import { useRoomStore } from '@entities/room/model/roomStore';
 
 interface RoomCardProps {
     room: Room;
@@ -44,6 +44,9 @@ export function RoomCard({ room, onDelete, onRename }: RoomCardProps) {
     const toast = useToast();
     const { onCopy, hasCopied } = useClipboard(room.shareCode);
 
+    const updateRoom = useRoomStore((s) => s.updateRoom);
+    const deleteRoom = useRoomStore((s) => s.deleteRoom);
+
     const [isEditing, setIsEditing] = useState(false);
     const [editName, setEditName] = useState(room.name);
     const [isSaving, setIsSaving] = useState(false);
@@ -61,7 +64,7 @@ export function RoomCard({ room, onDelete, onRename }: RoomCardProps) {
         }
         setIsSaving(true);
         try {
-            await roomApi.update(room.id, { name: trimmed });
+            await updateRoom(room.id, trimmed);
             onRename(room.id, trimmed);
             setIsEditing(false);
         } catch {
@@ -75,7 +78,7 @@ export function RoomCard({ room, onDelete, onRename }: RoomCardProps) {
     const handleDelete = async () => {
         setIsDeleting(true);
         try {
-            await roomApi.delete(room.id);
+            await deleteRoom(room.id);
             onDelete(room.id);
             onDeleteClose();
         } catch {
