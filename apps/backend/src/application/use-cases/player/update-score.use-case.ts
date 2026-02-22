@@ -10,6 +10,10 @@ import {
   IScoreHistoryRepository,
   SCORE_HISTORY_REPOSITORY,
 } from '@domain/repositories/score-history.repository.interface';
+import {
+  IScoreEventPublisher,
+  SCORE_EVENT_PUBLISHER,
+} from '@application/ports/score-event-publisher.interface';
 
 export type ScoreOperation = 'increment' | 'decrement' | 'set';
 
@@ -26,6 +30,8 @@ export class UpdateScoreUseCase {
     private readonly playerRepository: IPlayerRepository,
     @Inject(SCORE_HISTORY_REPOSITORY)
     private readonly scoreHistoryRepository: IScoreHistoryRepository,
+    @Inject(SCORE_EVENT_PUBLISHER)
+    private readonly scoreEventPublisher: IScoreEventPublisher,
   ) {}
 
   async execute(dto: UpdateScoreDto): Promise<Player> {
@@ -59,6 +65,19 @@ export class UpdateScoreUseCase {
     );
     await this.scoreHistoryRepository.create(scoreHistory);
 
-    return await this.playerRepository.update(player);
+    const updatedPlayer = await this.playerRepository.update(player);
+
+    this.scoreEventPublisher.emitScoreChanged({
+      playerId: updatedPlayer.id,
+      playerName: updatedPlayer.name,
+      roomId: updatedPlayer.roomId,
+      oldScore: previousScore,
+      newScore: updatedPlayer.score,
+      changeAmount: updatedPlayer.score - previousScore,
+      operation: dto.operation,
+      timestamp: new Date().toISOString(),
+    });
+
+    return updatedPlayer;
   }
 }

@@ -32,6 +32,7 @@ import {UpdateRoomUseCase} from "@application/use-cases/room/update-room.use-cas
 import {GetPlayersByRoomIdUseCase} from "@application/use-cases/player/get-players-by-room-id.use-case";
 import {UpdatePlayerNameUseCase} from "@application/use-cases/player/update-player-name.use-case";
 import {DeletePlayerUseCase} from "@application/use-cases/player/delete-player.use-case";
+import { SCORE_EVENT_PUBLISHER } from '@application/ports/score-event-publisher.interface';
 
 @Module({
   imports: [
@@ -87,6 +88,10 @@ import {DeletePlayerUseCase} from "@application/use-cases/player/delete-player.u
     {
       provide: SCORE_HISTORY_REPOSITORY,
       useClass: ScoreHistoryRepository,
+    },
+    {
+      provide: SCORE_EVENT_PUBLISHER,
+      useExisting: ScoreGateway,
     },
   ],
 })

@@ -4,18 +4,16 @@ import {
   SubscribeMessage,
   MessageBody,
   ConnectedSocket,
+  OnGatewayDisconnect,
 } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
+import {
+  IScoreEventPublisher,
+  ScoreChangedEvent,
+} from '@application/ports/score-event-publisher.interface';
 
 interface SubscribeToPlayerDto {
   playerId: string;
-}
-
-interface ScoreChangedEvent {
-  playerId: string;
-  oldScore: number;
-  newScore: number;
-  operation: string;
 }
 
 @WebSocketGateway({
@@ -23,7 +21,7 @@ interface ScoreChangedEvent {
     origin: '*',
   },
 })
-export class ScoreGateway {
+export class ScoreGateway implements IScoreEventPublisher, OnGatewayDisconnect {
   @WebSocketServer()
   server: Server;
 
@@ -43,6 +41,10 @@ export class ScoreGateway {
   ) {
     client.leave(`player:${data.playerId}`);
     return { event: 'unsubscribed', playerId: data.playerId };
+  }
+
+  handleDisconnect(_client: Socket) {
+    // Socket.io automatically removes a disconnecting client from all rooms.
   }
 
   emitScoreChanged(event: ScoreChangedEvent) {
