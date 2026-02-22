@@ -1,4 +1,6 @@
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+import { env } from '@shared/config/env';
+
+const API_URL = env.apiUrl;
 
 export class ApiClient {
   private baseUrl: string;

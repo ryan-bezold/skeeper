@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
+import { validate } from './config/env.validation';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { RoomsController } from '@presentation/controllers/rooms.controller';
 import { PlayersController } from '@presentation/controllers/players.controller';
@@ -39,6 +40,7 @@ import { SCORE_EVENT_PUBLISHER } from '@application/ports/score-event-publisher.
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
+      validate,
     }),
     TypeOrmModule.forRootAsync({
       inject: [ConfigService],
