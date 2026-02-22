@@ -72,7 +72,3 @@ The frontend follows FSD methodology with:
 - **features**: User interactions and business features
 - **entities**: Business entities
 - **shared**: Reusable infrastructure code
-
-## License
-
-MIT
