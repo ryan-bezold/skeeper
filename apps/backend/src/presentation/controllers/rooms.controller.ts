@@ -13,6 +13,7 @@ import { CreateRoomUseCase } from '@application/use-cases/room/create-room.use-c
 import { DeleteRoomUseCase } from '@application/use-cases/room/delete-room.use-case';
 import { GetAllRoomsUseCase } from '@application/use-cases/room/get-all-rooms.use-case';
 import { GetRoomByIdUseCase } from '@application/use-cases/room/get-room-by-id.use-case';
+import { GetRoomByShareCodeUseCase } from '@application/use-cases/room/get-room-by-share-code.use-case';
 import { UpdateRoomUseCase } from '@application/use-cases/room/update-room.use-case';
 import { CreateRoomDto, UpdateRoomDto } from '@presentation/dtos/room.dto';
 
@@ -23,6 +24,7 @@ export class RoomsController {
     private readonly deleteRoomUseCase: DeleteRoomUseCase,
     private readonly getAllRoomsUseCase: GetAllRoomsUseCase,
     private readonly getRoomByIdUseCase: GetRoomByIdUseCase,
+    private readonly getRoomByShareCodeUseCase: GetRoomByShareCodeUseCase,
     private readonly updateRoomUseCase: UpdateRoomUseCase,
   ) {}
 
@@ -34,6 +36,11 @@ export class RoomsController {
   @Get()
   async findAll() {
     return await this.getAllRoomsUseCase.execute();
+  }
+
+  @Get('code/:shareCode')
+  async findByShareCode(@Param('shareCode') shareCode: string) {
+    return await this.getRoomByShareCodeUseCase.execute({ shareCode });
   }
 
   @Get(':id')

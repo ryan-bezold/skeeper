@@ -4,18 +4,29 @@ import {
     Box,
     Button,
     Container,
+    FormControl,
+    FormLabel,
     Heading,
     HStack,
     Input,
     InputGroup,
     InputLeftElement,
+    Modal,
+    ModalBody,
+    ModalCloseButton,
+    ModalContent,
+    ModalFooter,
+    ModalHeader,
+    ModalOverlay,
     Skeleton,
     SkeletonText,
     Text,
+    useDisclosure,
     useToast,
     VStack,
 } from '@chakra-ui/react';
 import { AddIcon, SearchIcon } from '@chakra-ui/icons';
+import { MdQrCodeScanner } from 'react-icons/md';
 import { roomApi } from '@entities/room/api/roomApi';
 import { Room } from '@entities/room/model/types.ts';
 import { RoomCard } from '@widgets/room-card/ui/RoomCard.tsx';
@@ -43,9 +54,36 @@ export function RoomListPage() {
     const [rooms, setRooms] = useState<Room[]>([]);
     const [search, setSearch] = useState('');
 
+    const { isOpen: isJoinOpen, onOpen: onJoinOpen, onClose: onJoinClose } = useDisclosure();
+    const [joinCode, setJoinCode] = useState('');
+    const [isJoining, setIsJoining] = useState(false);
+
     const filteredRooms = rooms.filter((r) =>
         r.name.toLowerCase().includes(search.toLowerCase()),
     );
+
+    const handleJoinRoom = async () => {
+        const code = joinCode.trim();
+        if (!code) return;
+
+        setIsJoining(true);
+        try {
+            const room = await roomApi.getByShareCode(code);
+            onJoinClose();
+            setJoinCode('');
+            navigate(`/rooms/${room.id}`);
+        } catch {
+            toast({
+                title: 'Room not found',
+                description: 'Check the share code and try again.',
+                status: 'error',
+                duration: 3000,
+                isClosable: true,
+            });
+        } finally {
+            setIsJoining(false);
+        }
+    };
 
     const handleCreateRoom = async () => {
         setIsCreating(true);
@@ -108,17 +146,29 @@ export function RoomListPage() {
                         </Text>
                     </Box>
 
-                    <Button
-                        leftIcon={<AddIcon />}
-                        colorScheme="brand"
-                        size="lg"
-                        onClick={handleCreateRoom}
-                        isLoading={isCreating}
-                        loadingText="Creating..."
-                        w={{ base: 'full', sm: 'fit-content' }}
-                    >
-                        Create New Room
-                    </Button>
+                    <HStack spacing={3} flexWrap="wrap">
+                        <Button
+                            leftIcon={<AddIcon />}
+                            colorScheme="brand"
+                            size="lg"
+                            onClick={handleCreateRoom}
+                            isLoading={isCreating}
+                            loadingText="Creating..."
+                            w={{ base: 'full', sm: 'fit-content' }}
+                        >
+                            Create New Room
+                        </Button>
+                        <Button
+                            leftIcon={<MdQrCodeScanner />}
+                            variant="outline"
+                            colorScheme="gray"
+                            size="lg"
+                            onClick={onJoinOpen}
+                            w={{ base: 'full', sm: 'fit-content' }}
+                        >
+                            Join via Code
+                        </Button>
+                    </HStack>
 
                     <Box>
                         <HStack justify="space-between" align="center" mb={4}>
@@ -176,6 +226,47 @@ export function RoomListPage() {
                     </Box>
                 </VStack>
             </Container>
+
+            {/* Join by Share Code modal */}
+            <Modal isOpen={isJoinOpen} onClose={() => { onJoinClose(); setJoinCode(''); }} isCentered size="sm">
+                <ModalOverlay />
+                <ModalContent bg="gray.800" borderWidth={1} borderColor="gray.700">
+                    <ModalHeader>Join Room</ModalHeader>
+                    <ModalCloseButton />
+                    <ModalBody>
+                        <FormControl>
+                            <FormLabel color="gray.400" fontSize="sm">Enter share code</FormLabel>
+                            <Input
+                                placeholder="e.g. a1b2c3d4"
+                                value={joinCode}
+                                onChange={(e) => setJoinCode(e.target.value)}
+                                onKeyDown={(e) => e.key === 'Enter' && handleJoinRoom()}
+                                bg="gray.700"
+                                borderColor="gray.600"
+                                fontFamily="mono"
+                                letterSpacing="widest"
+                                autoFocus
+                                _hover={{ borderColor: 'gray.500' }}
+                                _focus={{ borderColor: 'brand.400', boxShadow: 'none' }}
+                            />
+                        </FormControl>
+                    </ModalBody>
+                    <ModalFooter>
+                        <Button variant="ghost" mr={3} onClick={() => { onJoinClose(); setJoinCode(''); }}>
+                            Cancel
+                        </Button>
+                        <Button
+                            colorScheme="brand"
+                            onClick={handleJoinRoom}
+                            isLoading={isJoining}
+                            loadingText="Joining..."
+                            isDisabled={!joinCode.trim()}
+                        >
+                            Join Room
+                        </Button>
+                    </ModalFooter>
+                </ModalContent>
+            </Modal>
         </Box>
     );
 }
