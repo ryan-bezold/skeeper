@@ -6,7 +6,9 @@ RUN npm install -g pnpm@9.0.0
 WORKDIR /app
 
 # Copy package files
-COPY package.json pnpm-workspace.yaml pnpm-lock.yaml* ./
+COPY package.json pnpm-workspace.yaml ./
+COPY pnpm-lock.yaml ./
+COPY turbo.json ./
 COPY apps/frontend/package.json ./apps/frontend/
 
 # Install dependencies
@@ -14,7 +16,6 @@ RUN pnpm install --frozen-lockfile
 
 # Copy source
 COPY apps/frontend ./apps/frontend
-COPY turbo.json ./
 
 # Development stage
 FROM base AS development
