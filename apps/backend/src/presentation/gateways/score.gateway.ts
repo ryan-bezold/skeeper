@@ -4,6 +4,7 @@ import {
   SubscribeMessage,
   MessageBody,
   ConnectedSocket,
+  OnGatewayDisconnect,
 } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
 
@@ -11,11 +12,15 @@ interface SubscribeToPlayerDto {
   playerId: string;
 }
 
-interface ScoreChangedEvent {
+export interface ScoreChangedEvent {
   playerId: string;
+  playerName: string;
+  roomId: string;
   oldScore: number;
   newScore: number;
-  operation: string;
+  changeAmount: number;
+  operation: 'increment' | 'decrement' | 'set';
+  timestamp: string;
 }
 
 @WebSocketGateway({
@@ -23,7 +28,7 @@ interface ScoreChangedEvent {
     origin: '*',
   },
 })
-export class ScoreGateway {
+export class ScoreGateway implements OnGatewayDisconnect {
   @WebSocketServer()
   server: Server;
 
@@ -43,6 +48,10 @@ export class ScoreGateway {
   ) {
     client.leave(`player:${data.playerId}`);
     return { event: 'unsubscribed', playerId: data.playerId };
+  }
+
+  handleDisconnect(client: Socket) {
+    client.rooms.forEach((room) => client.leave(room));
   }
 
   emitScoreChanged(event: ScoreChangedEvent) {
