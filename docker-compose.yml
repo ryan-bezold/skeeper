@@ -1,0 +1,61 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: skeeper-postgres
+    environment:
+      POSTGRES_DB: skeeper
+      POSTGRES_USER: skeeper
+      POSTGRES_PASSWORD: skeeper_dev_password
+    ports:
+      - '5432:5432'
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U skeeper']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: .
+      dockerfile: apps/backend/Dockerfile
+    container_name: skeeper-backend
+    environment:
+      NODE_ENV: development
+      DATABASE_HOST: postgres
+      DATABASE_PORT: 5432
+      DATABASE_NAME: skeeper
+      DATABASE_USER: skeeper
+      DATABASE_PASSWORD: skeeper_dev_password
+      PORT: 3000
+    ports:
+      - '3000:3000'
+    volumes:
+      - ./apps/backend:/app/apps/backend
+      - /app/node_modules
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command: pnpm --filter @skeeper/backend dev
+
+  frontend:
+    build:
+      context: .
+      dockerfile: apps/frontend/Dockerfile
+    container_name: skeeper-frontend
+    environment:
+      VITE_API_URL: http://localhost:3000
+    ports:
+      - '5173:5173'
+    volumes:
+      - ./apps/frontend:/app/apps/frontend
+      - /app/node_modules
+    depends_on:
+      - backend
+    command: pnpm --filter @skeeper/frontend dev
+
+volumes:
+  postgres_data:
