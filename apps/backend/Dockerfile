@@ -1,36 +1,38 @@
 FROM node:20-alpine AS base
-
-# Install pnpm
 RUN npm install -g pnpm@9.0.0
-
 WORKDIR /app
 
-# Copy package files
-COPY package.json pnpm-workspace.yaml ./
-COPY pnpm-lock.yaml ./
-COPY turbo.json ./
-COPY apps/backend/package.json ./apps/backend/
+# Only copy manifests first for better layer caching
+COPY package.json pnpm-workspace.yaml pnpm-lock.yaml turbo.json ./
+COPY apps/backend/package.json ./apps/backend/package.json
 
-# Install dependencies
-RUN pnpm install --frozen-lockfile
+# Cache pnpm store (requires DOCKER_BUILDKIT=1)
+RUN --mount=type=cache,id=pnpm-store,target=/root/.local/share/pnpm/store \
+    pnpm install --frozen-lockfile
 
-# Copy source
+# Then copy source
 COPY apps/backend ./apps/backend
 
-# Development stage
 FROM base AS development
 CMD ["pnpm", "--filter", "@skeeper/backend", "dev"]
 
-# Production build
 FROM base AS build
 RUN pnpm --filter @skeeper/backend build
 
-# Production stage
 FROM node:20-alpine AS production
 RUN npm install -g pnpm@9.0.0
 WORKDIR /app
+ENV NODE_ENV=production
+
+# Copy only what we need to install runtime deps
+COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./
+COPY apps/backend/package.json ./apps/backend/package.json
+
+# Install prod deps for backend with cache
+RUN --mount=type=cache,id=pnpm-store,target=/root/.local/share/pnpm/store \
+    pnpm install --frozen-lockfile --prod --filter @skeeper/backend...
+
+# Copy built output
 COPY --from=build /app/apps/backend/dist ./dist
-COPY --from=build /app/apps/backend/package.json ./
-COPY --from=build /app/package.json /app/pnpm-workspace.yaml /app/pnpm-lock.yaml ./
-RUN pnpm install --frozen-lockfile --prod --filter @skeeper/backend
+
 CMD ["node", "dist/main.js"]
