@@ -29,9 +29,8 @@ RUN pnpm --filter @skeeper/backend build
 FROM node:20-alpine AS production
 RUN npm install -g pnpm@9.0.0
 WORKDIR /app
-
 COPY --from=build /app/apps/backend/dist ./dist
 COPY --from=build /app/apps/backend/package.json ./
-COPY --from=build /app/node_modules ./node_modules
-
+COPY --from=build /app/package.json /app/pnpm-workspace.yaml /app/pnpm-lock.yaml ./
+RUN pnpm install --frozen-lockfile --prod --filter @skeeper/backend
 CMD ["node", "dist/main.js"]

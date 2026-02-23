@@ -57,6 +57,8 @@ import { SCORE_EVENT_PUBLISHER } from '@application/ports/score-event-publisher.
           ScoreHistoryTypeOrmEntity,
         ],
         synchronize: config.get('NODE_ENV') === 'development',
+        migrationsRun: config.get('NODE_ENV') !== 'development',
+        migrations: ['migrations/*.ts']
       }),
     }),
     TypeOrmModule.forFeature([
