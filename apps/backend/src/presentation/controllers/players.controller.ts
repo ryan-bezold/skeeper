@@ -9,12 +9,14 @@ import {
 } from '@nestjs/common';
 import { CreatePlayerUseCase } from '@application/use-cases/player/create-player.use-case';
 import { UpdateScoreUseCase } from '@application/use-cases/player/update-score.use-case';
+import { ResetScoresUseCase } from '@application/use-cases/player/reset-scores.use-case';
 
 @Controller('rooms/:roomId/players')
 export class PlayersController {
   constructor(
     private readonly createPlayerUseCase: CreatePlayerUseCase,
     private readonly updateScoreUseCase: UpdateScoreUseCase,
+    private readonly resetScoresUseCase: ResetScoresUseCase,
   ) {}
 
   @Post()
@@ -32,6 +34,11 @@ export class PlayersController {
   async findAll(@Param('roomId') roomId: string) {
     // TODO: Implement list players use case
     return [];
+  }
+
+  @Post('reset-scores')
+  async resetScores(@Param('roomId') roomId: string) {
+    return await this.resetScoresUseCase.execute(roomId);
   }
 
   @Patch(':id/score')
