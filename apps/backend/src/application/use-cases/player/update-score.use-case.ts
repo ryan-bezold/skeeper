@@ -1,7 +1,10 @@
 import { Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { v4 as uuidv4 } from 'uuid';
 import { Player } from '@domain/entities/player.entity';
-import { ScoreHistory } from '@domain/entities/score-history.entity';
+import {
+  ScoreChangeType,
+  ScoreHistory,
+} from '@domain/entities/score-history.entity';
 import {
   IPlayerRepository,
   PLAYER_REPOSITORY,
@@ -21,6 +24,8 @@ export interface UpdateScoreDto {
 
 @Injectable()
 export class UpdateScoreUseCase {
+  private static readonly HISTORY_DEBOUNCE_WINDOW_MS = 10_000;
+
   constructor(
     @Inject(PLAYER_REPOSITORY)
     private readonly playerRepository: IPlayerRepository,
@@ -49,16 +54,54 @@ export class UpdateScoreUseCase {
         break;
     }
 
-    // Record score history
-    const scoreHistory = ScoreHistory.create(
-      uuidv4(),
-      player.id,
-      previousScore,
-      player.score,
-      dto.operation,
-    );
-    await this.scoreHistoryRepository.create(scoreHistory);
+    const latestHistory =
+      await this.scoreHistoryRepository.findLatestByPlayerId(player.id);
+
+    if (this.shouldMergeHistory(latestHistory)) {
+      await this.scoreHistoryRepository.update(
+        latestHistory.merge(
+          player.score,
+          this.getChangeType(latestHistory.previousScore, player.score, dto.operation),
+        ),
+      );
+    } else {
+      const scoreHistory = ScoreHistory.create(
+        uuidv4(),
+        player.id,
+        previousScore,
+        player.score,
+        dto.operation,
+      );
+      await this.scoreHistoryRepository.create(scoreHistory);
+    }
 
     return await this.playerRepository.update(player);
+  }
+
+  private shouldMergeHistory(scoreHistory: ScoreHistory | null): scoreHistory is ScoreHistory {
+    if (!scoreHistory) {
+      return false;
+    }
+
+    return (
+      Date.now() - scoreHistory.createdAt.getTime() <=
+      UpdateScoreUseCase.HISTORY_DEBOUNCE_WINDOW_MS
+    );
+  }
+
+  private getChangeType(
+    previousScore: number,
+    newScore: number,
+    fallback: ScoreOperation,
+  ): ScoreChangeType {
+    if (newScore > previousScore) {
+      return 'increment';
+    }
+
+    if (newScore < previousScore) {
+      return 'decrement';
+    }
+
+    return fallback;
   }
 }

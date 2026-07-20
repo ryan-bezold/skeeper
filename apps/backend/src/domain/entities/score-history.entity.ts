@@ -29,4 +29,16 @@ export class ScoreHistory {
       new Date(),
     );
   }
+
+  merge(newScore: number, changeType: ScoreChangeType): ScoreHistory {
+    return new ScoreHistory(
+      this.id,
+      this.playerId,
+      this.previousScore,
+      newScore,
+      newScore - this.previousScore,
+      changeType,
+      this.createdAt,
+    );
+  }
 }
