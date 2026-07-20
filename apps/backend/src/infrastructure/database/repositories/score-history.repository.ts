@@ -18,12 +18,27 @@ export class ScoreHistoryRepository implements IScoreHistoryRepository {
     return this.toDomain(saved);
   }
 
+  async update(scoreHistory: ScoreHistory): Promise<ScoreHistory> {
+    const entity = this.repository.create(this.toTypeOrm(scoreHistory));
+    const saved = await this.repository.save(entity);
+    return this.toDomain(saved);
+  }
+
   async findByPlayerId(playerId: string): Promise<ScoreHistory[]> {
     const entities = await this.repository.find({
       where: { playerId },
       order: { createdAt: 'DESC' },
     });
     return entities.map((e) => this.toDomain(e));
+  }
+
+  async findLatestByPlayerId(playerId: string): Promise<ScoreHistory | null> {
+    const entity = await this.repository.findOne({
+      where: { playerId },
+      order: { createdAt: 'DESC' },
+    });
+
+    return entity ? this.toDomain(entity) : null;
   }
 
   async findByRoomId(roomId: string): Promise<ScoreHistory[]> {
