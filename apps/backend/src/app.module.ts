@@ -8,6 +8,7 @@ import { ScoreGateway } from '@presentation/gateways/score.gateway';
 import { CreateRoomUseCase } from '@application/use-cases/room/create-room.use-case';
 import { CreatePlayerUseCase } from '@application/use-cases/player/create-player.use-case';
 import { UpdateScoreUseCase } from '@application/use-cases/player/update-score.use-case';
+import { ResetScoresUseCase } from '@application/use-cases/player/reset-scores.use-case';
 import { GetPlayerScoreHistoryUseCase } from '@application/use-cases/score-history/get-player-score-history.use-case';
 import { GetRoomScoreHistoryUseCase } from '@application/use-cases/score-history/get-room-score-history.use-case';
 import { PlayerRepository } from '@infrastructure/database/repositories/player.repository';
@@ -60,6 +61,7 @@ import {
     CreateRoomUseCase,
     CreatePlayerUseCase,
     UpdateScoreUseCase,
+    ResetScoresUseCase,
     GetPlayerScoreHistoryUseCase,
     GetRoomScoreHistoryUseCase,
     {

@@ -21,4 +21,8 @@ export const playerApi = {
   delete: (playerId: string): Promise<void> => {
     return apiClient.delete(`/rooms/_/players/${playerId}`);
   },
+
+  resetScores: (roomId: string): Promise<Player[]> => {
+    return apiClient.post<Player[]>(`/rooms/${roomId}/players/reset-scores`);
+  },
 };

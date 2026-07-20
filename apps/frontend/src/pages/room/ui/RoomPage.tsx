@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import {
   Box,
@@ -9,6 +9,13 @@ import {
   VStack,
   HStack,
   Tooltip,
+  AlertDialog,
+  AlertDialogBody,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogContent,
+  AlertDialogOverlay,
+  useDisclosure,
   useToast,
   Spinner,
 } from '@chakra-ui/react';
@@ -22,7 +29,10 @@ export function RoomPage() {
   const [players, setPlayers] = useState<Player[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSummaryMode, setIsSummaryMode] = useState(false);
+  const { isOpen, onOpen, onClose } = useDisclosure();
+  const cancelRef = useRef<HTMLButtonElement>(null);
   const toast = useToast();
+  const [isResetting, setIsResetting] = useState(false);
 
   useEffect(() => {
     if (!id) return;
@@ -48,6 +58,34 @@ export function RoomPage() {
 
     fetchPlayers();
   }, [id, toast]);
+
+  const handleResetScores = async () => {
+    if (!id) return;
+    setIsResetting(true);
+    try {
+      const updatedPlayers = await playerApi.resetScores(id);
+      setPlayers(updatedPlayers);
+      toast({
+        title: 'Scores reset',
+        description: 'All player scores have been reset to zero.',
+        status: 'success',
+        duration: 3000,
+        isClosable: true,
+      });
+    } catch (error) {
+      console.error('Failed to reset scores:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to reset scores. Please try again.',
+        status: 'error',
+        duration: 3000,
+        isClosable: true,
+      });
+    } finally {
+      setIsResetting(false);
+      onClose();
+    }
+  };
 
   return (
     <Box minH="100vh" bg="gray.900">
@@ -140,18 +178,64 @@ export function RoomPage() {
                   ))}
                 </VStack>
               )}
-              <Button
-                leftIcon={<AddIcon />}
-                colorScheme="green"
-                size="md"
-                w={{ base: 'full', sm: 'fit-content' }}
-              >
-                Add Player
-              </Button>
+              <VStack align="stretch" spacing={3}>
+                <Button
+                  leftIcon={<AddIcon />}
+                  colorScheme="green"
+                  size="md"
+                  w={{ base: 'full', sm: 'fit-content' }}
+                >
+                  Add Player
+                </Button>
+                <Button
+                  colorScheme="red"
+                  variant="outline"
+                  size="md"
+                  w={{ base: 'full', sm: 'fit-content' }}
+                  onClick={onOpen}
+                >
+                  Reset All Scores
+                </Button>
+              </VStack>
             </Box>
           )}
         </VStack>
       </Container>
+
+      <AlertDialog
+        isOpen={isOpen}
+        leastDestructiveRef={cancelRef}
+        onClose={onClose}
+      >
+        <AlertDialogOverlay>
+          <AlertDialogContent bg="gray.800" borderColor="gray.700">
+            <AlertDialogHeader fontSize="lg" fontWeight="bold">
+              Reset All Scores
+            </AlertDialogHeader>
+
+            <AlertDialogBody>
+              Are you sure you want to reset all player scores to zero? This
+              action cannot be undone.
+            </AlertDialogBody>
+
+            <AlertDialogFooter>
+              <Button ref={cancelRef} onClick={onClose} variant="ghost">
+                Cancel
+              </Button>
+              <Button
+                colorScheme="red"
+                onClick={handleResetScores}
+                isLoading={isResetting}
+                loadingText="Resetting..."
+                ml={3}
+              >
+                Reset
+              </Button>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialogOverlay>
+      </AlertDialog>
     </Box>
   );
 }
+
